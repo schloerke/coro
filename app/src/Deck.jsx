@@ -118,7 +118,7 @@ export default function Deck() {
       {/* 8 — Act 3: THE FIX (same pyramid, fixed) */}
       <Slide>
         <Heading fontSize="2.4rem">Rebuilt each step, separate again</Heading>
-        <ContextPyramid name="fix" caption={[
+        <ContextPyramid name="fix" numCols={2} caption={[
           "A's setup() pushes the domain",
           "await = step end → teardown pops A",
           "B runs clean — its own pyramid",

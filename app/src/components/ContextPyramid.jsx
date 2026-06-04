@@ -9,12 +9,15 @@ const ROW_H = 46;
 const ROW_GAP = 8;
 
 // Lay rows out as centered, stacked bars per group (column).
-function layout(rows) {
-  const groups = [...new Set(rows.map((r) => r.group))].sort();
-  const colW = VIEW_W / groups.length;
+// numCols: if provided, always reserve that many columns so positions are
+// stable across beats even when some columns are empty (e.g. the fix pyramid).
+function layout(rows, numCols) {
+  const presentGroups = [...new Set(rows.map((r) => r.group))].sort((a, b) => a - b);
+  const totalCols = numCols ?? (presentGroups.length || 1);
+  const colW = VIEW_W / totalCols;
   const placed = [];
-  groups.forEach((g, gi) => {
-    const colRows = rows.filter((r) => r.group === g);
+  for (let gi = 0; gi < totalCols; gi++) {
+    const colRows = rows.filter((r) => r.group === gi);
     const cx = colW * gi + colW / 2;
     colRows.forEach((r, idx) => {
       const w = r.width * (colW * 0.82);
@@ -25,11 +28,11 @@ function layout(rows) {
         w,
       });
     });
-  });
+  }
   return placed;
 }
 
-export default function ContextPyramid({ name, caption }) {
+export default function ContextPyramid({ name, caption, numCols }) {
   // useSteps returns { step, placeholder, isActive, stepId }.
   // `step` starts at -1 (inactive / before first advance) and increments to
   // numSteps-1.  We pass (length - 1) so the range is -1 … length-2, then
@@ -43,7 +46,7 @@ export default function ContextPyramid({ name, caption }) {
   // Treat NaN as -1 so beatIndex always lands in [0, length-1].
   const safeStep = Number.isFinite(step) ? step : -1;
   const beatIndex = safeStep + 1; // -1 → 0, 0 → 1, … numSteps-1 → numSteps
-  const placed = layout(beatRows(name, beatIndex));
+  const placed = layout(beatRows(name, beatIndex), numCols);
 
   return (
     <div style={{ width: "100%" }}>
