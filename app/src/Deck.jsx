@@ -120,9 +120,8 @@ export default function Deck() {
           <Text>per-step • stacks &amp; composes • generators + async • symmetric teardown</Text>
           <Box />
           <Text color="secondary">r-lib/coro#68 · PR #70</Text>
-          <Text fontSize="1.2rem" color="secondary">
-            These slides are a live Shiny for R app — powered by{" "}
-            <span style={{ color: "#38bdf8" }}>shinyreact</span>
+          <Text fontSize="1.2rem">
+            These slides are a live Shiny for R app — powered by shinyreact
           </Text>
         </FlexBox>
       </Slide>
