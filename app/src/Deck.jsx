@@ -142,7 +142,7 @@ export default function Deck() {
       {/* 10 — Close */}
       <Slide>
         <FlexBox height="100%" flexDirection="column">
-          <Heading fontSize="2.6rem">setup()</Heading>
+          <Heading fontSize="2.6rem">coro::setup()</Heading>
           <Text>per-step • stacks &amp; composes • generators + async • symmetric teardown</Text>
           <Box />
           <Text color="secondary">r-lib/coro#68 · PR #70</Text>
