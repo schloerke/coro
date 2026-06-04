@@ -1,0 +1,1 @@
+(function(e){"use strict";function t(){return e.createElement("h1",{style:{color:"white",fontFamily:"sans-serif"}},"coro talk — scaffold OK")}const{ReactDOM:n}=window.shinyreact;n.createRoot(document.getElementById("root")).render(e.createElement(t,null))})(window.shinyreact.React);

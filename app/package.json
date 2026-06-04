@@ -1,0 +1,23 @@
+{
+  "name": "coro-setup-talk",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "spectacle": "^10.2.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}
