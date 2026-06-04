@@ -71,7 +71,15 @@ export default function Deck() {
         </FlexBox>
       </Slide>
 
-      {/* 5 — Act 2: THE FLAW (animated pyramid) */}
+      {/* 5 — Act 2: live proof of the bug */}
+      <Slide>
+        <Heading fontSize="2.4rem">See the leak (no setup())</Heading>
+        <Text fontSize="1.3rem">Each call prints which context is active after its await:</Text>
+        {/* showFixed=false is intentional — this slide demonstrates the leak */}
+        <LiveOutput showFixed={false} />
+      </Slide>
+
+      {/* 6 — Act 2: THE FLAW (animated pyramid) */}
       <Slide>
         <Heading fontSize="2.4rem">The domain is never torn down at the boundary</Heading>
         <ContextPyramid name="flaw" caption={[
@@ -80,14 +88,6 @@ export default function Deck() {
           "Call B starts concurrently, stacks on top",
           "Merged: A's context leaks into B. This is bad, mmkay.",
         ]} />
-      </Slide>
-
-      {/* 6 — Act 2: live proof of the bug */}
-      <Slide>
-        <Heading fontSize="2.4rem">See the leak (no setup())</Heading>
-        <Text fontSize="1.3rem">Each call prints which context is active after its await:</Text>
-        {/* showFixed=false is intentional — this slide demonstrates the leak */}
-        <LiveOutput showFixed={false} />
       </Slide>
 
       {/* 7 — Act 3: the fix */}
