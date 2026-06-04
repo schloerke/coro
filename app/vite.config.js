@@ -3,6 +3,13 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react({ jsxRuntime: "classic" })],
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production"),
+    "process.env.REACT_APP_SC_ATTR": JSON.stringify(undefined),
+    "process.env.REACT_APP_SC_DISABLE_SPEEDY": JSON.stringify(undefined),
+    "process.env.SC_ATTR": JSON.stringify(undefined),
+    "process.env.SC_DISABLE_SPEEDY": JSON.stringify(undefined),
+  },
   build: {
     outDir: "www",
     emptyOutDir: false,
@@ -14,12 +21,11 @@ export default defineConfig({
       fileName: () => "app.js",
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react-dom/client"],
+      external: ["react", "react-dom/client"],
       output: {
         assetFileNames: "main.css",
         globals: {
           react: "window.shinyreact.React",
-          "react-dom": "window.shinyreact.ReactDOM",
           "react-dom/client": "window.shinyreact.ReactDOM",
         },
       },

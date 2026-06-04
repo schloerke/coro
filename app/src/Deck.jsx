@@ -1,5 +1,12 @@
 import React from "react";
+import { Deck as SpectacleDeck, Slide, Heading } from "spectacle";
 
 export default function Deck() {
-  return <h1 style={{ color: "white", fontFamily: "sans-serif" }}>coro talk — scaffold OK</h1>;
+  return (
+    <SpectacleDeck>
+      <Slide>
+        <Heading>Spectacle + React 19 OK</Heading>
+      </Slide>
+    </SpectacleDeck>
+  );
 }
