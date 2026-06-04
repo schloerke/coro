@@ -18,12 +18,13 @@ export const BEATS = {
     [row("a1", "A", 1.0), row("a2", "A", 0.75), row("a3", "A", 0.5)],
     [row("a1", "A", 1.0), row("a2", "A", 0.75), row("a3", "A", 0.5), row("a4", "A", 0.28)],
   ],
-  // Act 2: A builds, suspends (dim), B stacks on top, then merge into one tower.
+  // Act 2: A builds, A awaits (rows linger at full opacity — NOT torn down!),
+  //         B stacks on top, then merge into one tower.
   flaw: [
     [row("a1", "A", 1.0), row("a2", "A", 0.72), row("a3", "A", 0.46)],
-    [row("a1", "A", 1.0, 0, true), row("a2", "A", 0.72, 0, true), row("a3", "A", 0.46, 0, true)],
+    [row("a1", "A", 1.0), row("a2", "A", 0.72), row("a3", "A", 0.46)],
     [
-      row("a1", "A", 1.0, 0, true), row("a2", "A", 0.72, 0, true), row("a3", "A", 0.46, 0, true),
+      row("a1", "A", 1.0), row("a2", "A", 0.72), row("a3", "A", 0.46),
       row("b1", "B", 0.9), row("b2", "B", 0.6),
     ],
     [
