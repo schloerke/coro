@@ -52,9 +52,15 @@ async(function() {
   emit(active_ctx())               # still owner — no leak
 })`;
 
+const fadeTransition = {
+  from: { opacity: 0 },
+  enter: { opacity: 1 },
+  leave: { opacity: 0 },
+};
+
 export default function Deck() {
   return (
-    <SpectacleDeck theme={theme}>
+    <SpectacleDeck theme={theme} transition={fadeTransition}>
       {/* 1 — Title */}
       <Slide>
         <FlexBox height="100%" flexDirection="column">
