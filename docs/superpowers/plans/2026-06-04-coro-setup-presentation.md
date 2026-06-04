@@ -96,6 +96,15 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react({ jsxRuntime: "classic" })],
+  // Spectacle pulls in styled-components, which reads process.env at runtime;
+  // Vite's IIFE/lib mode does not auto-replace it, so define it here.
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production"),
+    "process.env.REACT_APP_SC_ATTR": JSON.stringify(undefined),
+    "process.env.REACT_APP_SC_DISABLE_SPEEDY": JSON.stringify(undefined),
+    "process.env.SC_ATTR": JSON.stringify(undefined),
+    "process.env.SC_DISABLE_SPEEDY": JSON.stringify(undefined),
+  },
   build: {
     outDir: "www",
     emptyOutDir: false,
@@ -107,12 +116,15 @@ export default defineConfig({
       fileName: () => "app.js",
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react-dom/client"],
+      // Externalize `react` (one React instance — shinyreact's) and
+      // `react-dom/client` (for createRoot). Do NOT externalize bare
+      // `react-dom`: window.shinyreact.ReactDOM is the client-only surface and
+      // lacks `createPortal`, which Spectacle needs — so let react-dom bundle.
+      external: ["react", "react-dom/client"],
       output: {
         assetFileNames: "main.css",
         globals: {
           react: "window.shinyreact.React",
-          "react-dom": "window.shinyreact.ReactDOM",
           "react-dom/client": "window.shinyreact.ReactDOM",
         },
       },
@@ -120,6 +132,8 @@ export default defineConfig({
   },
 });
 ```
+
+> **Note (added during Task 2):** the original config externalized bare `react-dom` and omitted `define`; both broke Spectacle at runtime (`createPortal is not a function`; `process is not defined`). The config above is the corrected, verified-working version.
 
 - [ ] **Step 3: Create `app/www/index.html`** (fragment; `page_react_html` injects the shinyreact bundle)
 
