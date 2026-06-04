@@ -3,6 +3,7 @@ import { Deck as SpectacleDeck, Slide, Heading, Text, FlexBox, Box } from "spect
 import ContextPyramid from "./components/ContextPyramid.jsx";
 import RCode from "./components/RCode.jsx";
 import LiveOutput from "./components/LiveOutput.jsx";
+import CountdownOutput from "./components/CountdownOutput.jsx";
 import { theme } from "./theme.js";
 
 const ASYNC_SNIPPET = `async_count_down <- async(function(n) {
@@ -21,6 +22,25 @@ const SETUP_SNIPPET = `gen <- generator(function() {
   })
   yield(the$x)   # 1
   yield(the$x)   # 1 again: setup re-ran
+})`;
+
+const COUNTDOWN_SNIPPET = `async_count_down <- async(function(n) {
+  while (n > 0) {
+    cat("Down", n, "\\n")
+    await(async_sleep(0.5))
+    n <- n - 1
+  }
+})
+async_count_down(5)`;
+
+const LEAK_SNIPPET = `# without setup(): context entered directly in the body
+async(function() {
+  enter_ctx("A")            # sets active = "A", registers on.exit restore
+  await(async_sleep(0.1))   # suspends — on.exit NOT fired here!
+})
+async(function() {
+  enter_ctx("B")            # now active = "B" while A is still suspended
+  await(async_sleep(0.3))   # when A resumes: it sees "B", not "A"
 })`;
 
 const DOMAIN_SNIPPET = `# the fix: push the context inside setup()
@@ -55,8 +75,8 @@ export default function Deck() {
       {/* 3 — Act 1: live proof */}
       <Slide>
         <Heading fontSize="2.4rem">…and it really runs (live, in this page)</Heading>
-        <Text fontSize="1.3rem">Two concurrent coro async calls, interleaving on the event loop:</Text>
-        <LiveOutput showFixed={false} />
+        <RCode>{COUNTDOWN_SNIPPET}</RCode>
+        <CountdownOutput />
       </Slide>
 
       {/* 4 — Act 2: the setup */}
@@ -71,7 +91,7 @@ export default function Deck() {
       {/* 5 — Act 2: live proof of the bug */}
       <Slide>
         <Heading fontSize="2.4rem">See the leak (no setup())</Heading>
-        <Text fontSize="1.3rem">Each call prints which context is active after its await:</Text>
+        <RCode>{LEAK_SNIPPET}</RCode>
         {/* showFixed=false is intentional — this slide demonstrates the leak */}
         <LiveOutput showFixed={false} />
       </Slide>

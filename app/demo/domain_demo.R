@@ -54,3 +54,17 @@ domain_demo <- function(emit, use_setup) {
 }
 
 is_demo_running <- function() isTRUE(the_ctx$running)
+
+countdown_demo <- function(emit, n = 5) {
+  the_ctx$running <- TRUE
+  p <- coro::async(function() {
+    i <- n
+    while (i > 0) {
+      emit(sprintf("Down %d", i))
+      coro::await(coro::async_sleep(0.4))
+      i <- i - 1
+    }
+    emit("Done!")
+  })()
+  promises::finally(p, function() the_ctx$running <- FALSE)
+}

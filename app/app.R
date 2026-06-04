@@ -50,6 +50,29 @@ server <- function(input, output, session) {
 
   observeEvent(input$run_broken, run_demo(use_setup = FALSE))
   observeEvent(input$run_fixed, run_demo(use_setup = TRUE))
+
+  observeEvent(input$run_countdown, {
+    if (is_demo_running()) return(invisible())
+    demo_lines(character(0))
+    logfile <- tempfile(fileext = ".log")
+    file.create(logfile)
+    con <- file(logfile, "r")
+    emit <- make_emit(logfile)
+    promises::catch(
+      countdown_demo(emit, n = 5),
+      function(err) emit(sprintf("ERROR: %s", conditionMessage(err)))
+    )
+    drain <- function() {
+      new <- readLines(con)
+      if (length(new)) demo_lines(c(isolate(demo_lines()), new))
+    }
+    poll <- function() {
+      drain()
+      if (is_demo_running()) later::later(poll, 0.2)
+      else { drain(); close(con) }
+    }
+    poll()
+  })
 }
 
 shinyApp(ui, server)
