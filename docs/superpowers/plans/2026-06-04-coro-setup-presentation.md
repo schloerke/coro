@@ -643,19 +643,19 @@ enter_ctx <- function(owner) {
 domain_demo <- function(emit, use_setup) {
   the_ctx$active <- "<none>"
 
-  make_call <- function(owner) {
+  make_call <- function(owner, delay) {
     if (use_setup) {
       coro::async(function() {
         coro::setup(enter_ctx(owner))
         emit(sprintf("[%s] start       -> active=%s", owner, active_ctx()))
-        coro::await(coro::async_sleep(0.2))
+        coro::await(coro::async_sleep(delay))
         emit(sprintf("[%s] after await  -> active=%s", owner, active_ctx()))
       })
     } else {
       coro::async(function() {
         enter_ctx(owner)
         emit(sprintf("[%s] start       -> active=%s", owner, active_ctx()))
-        coro::await(coro::async_sleep(0.2))
+        coro::await(coro::async_sleep(delay))
         emit(sprintf("[%s] after await  -> active=%s", owner, active_ctx()))
       })
     }
@@ -663,7 +663,9 @@ domain_demo <- function(emit, use_setup) {
 
   # is_running flag lets the server know when the tail poller can stop.
   the_ctx$running <- TRUE
-  p <- promises::promise_all(make_call("A")(), make_call("B")())
+  # A sleeps shorter (0.1s), B longer (0.3s): A resumes while B's context is
+  # still active, so the leak (A sees "B", B later sees "<none>") is deterministic.
+  p <- promises::promise_all(make_call("A", 0.1)(), make_call("B", 0.3)())
   promises::finally(p, function() the_ctx$running <- FALSE)
 }
 
