@@ -4,6 +4,7 @@ import ContextPyramid from "./components/ContextPyramid.jsx";
 import RCode from "./components/RCode.jsx";
 import LiveOutput from "./components/LiveOutput.jsx";
 import CountdownOutput from "./components/CountdownOutput.jsx";
+import SideBySideOutput from "./components/SideBySideOutput.jsx";
 import { theme } from "./theme.js";
 
 const ASYNC_SNIPPET = `async_count_down <- async(function(n) {
@@ -129,8 +130,7 @@ export default function Deck() {
       {/* 9 — Act 3: live proof of the fix */}
       <Slide>
         <Heading fontSize="2.4rem">No leak with setup()</Heading>
-        <Text fontSize="1.3rem">Run both and compare — broken vs. fixed:</Text>
-        <LiveOutput showFixed={true} />
+        <SideBySideOutput />
       </Slide>
 
       {/* 10 — Close */}

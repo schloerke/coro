@@ -51,6 +51,38 @@ server <- function(input, output, session) {
   observeEvent(input$run_broken, run_demo(use_setup = FALSE))
   observeEvent(input$run_fixed, run_demo(use_setup = TRUE))
 
+  # Side-by-side outputs for the "No leak with setup()" slide.
+  broken_lines <- reactiveVal(character(0))
+  fixed_lines  <- reactiveVal(character(0))
+  output$broken_lines <- reactive_output(broken_lines())
+  output$fixed_lines  <- reactive_output(fixed_lines())
+
+  run_side_demo <- function(use_setup, store) {
+    if (is_demo_running()) return(invisible())
+    store(character(0))
+    logfile <- tempfile(fileext = ".log")
+    file.create(logfile)
+    con <- file(logfile, "r")
+    emit <- make_emit(logfile)
+    promises::catch(
+      domain_demo(emit, use_setup = use_setup),
+      function(err) emit(sprintf("ERROR: %s", conditionMessage(err)))
+    )
+    drain <- function() {
+      new <- readLines(con)
+      if (length(new)) store(c(isolate(store()), new))
+    }
+    poll <- function() {
+      drain()
+      if (is_demo_running()) later::later(poll, 0.2)
+      else { drain(); close(con) }
+    }
+    poll()
+  }
+
+  observeEvent(input$run_side_broken, run_side_demo(FALSE, broken_lines))
+  observeEvent(input$run_side_fixed,  run_side_demo(TRUE,  fixed_lines))
+
   observeEvent(input$run_countdown, {
     if (is_demo_running()) return(invisible())
     demo_lines(character(0))
