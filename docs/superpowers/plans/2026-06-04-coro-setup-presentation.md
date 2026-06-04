@@ -940,6 +940,7 @@ export default function Deck() {
       <Slide>
         <Heading fontSize="2.4rem">See the leak (no setup())</Heading>
         <Text fontSize="1.3rem">Each call prints which context is active after its await:</Text>
+        {/* showFixed=false is intentional — this slide demonstrates the leak */}
         <LiveOutput showFixed={false} />
       </Slide>
 
@@ -947,6 +948,7 @@ export default function Deck() {
       <Slide>
         <Heading fontSize="2.5rem">setup(): per-step setup AND teardown</Heading>
         <RCode>{SETUP_SNIPPET}</RCode>
+        <Box height="1.5rem" />
         <RCode>{DOMAIN_SNIPPET}</RCode>
       </Slide>
 
