@@ -3,7 +3,8 @@ import { useSteps } from "spectacle";
 import { beatRows, BEATS } from "../pyramidBeats.js";
 
 const VIEW_W = 960;
-const VIEW_H = 460;
+// 5 rows max × (46+8) = 270px; 300 gives a little headroom at the top.
+const VIEW_H = 300;
 const ROW_H = 46;
 const ROW_GAP = 8;
 
@@ -51,7 +52,7 @@ export default function ContextPyramid({ name, caption }) {
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         width="100%"
-        height="460"
+        height={VIEW_H}
         style={{ display: "block" }}
       >
         {placed.map((r) => (
