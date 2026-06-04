@@ -50,9 +50,6 @@ export default function Deck() {
         <Text fontSize="1.4rem" color="secondary">
           Compiled to a state machine; suspends at await/yield, resumes where it left off.
         </Text>
-        <ContextPyramid name="strengths" caption={[
-          "one call…", "applies a context…", "and another…", "a clean stack of applied contexts",
-        ]} />
       </Slide>
 
       {/* 3 — Act 1: live proof */}
@@ -123,6 +120,10 @@ export default function Deck() {
           <Text>per-step • stacks &amp; composes • generators + async • symmetric teardown</Text>
           <Box />
           <Text color="secondary">r-lib/coro#68 · PR #70</Text>
+          <Text fontSize="1.2rem" color="secondary">
+            These slides are a live Shiny for R app — powered by{" "}
+            <span style={{ color: "#38bdf8" }}>shinyreact</span>
+          </Text>
         </FlexBox>
       </Slide>
     </SpectacleDeck>
