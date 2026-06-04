@@ -1,3 +1,7 @@
 <link rel="stylesheet" href="main.css" />
 <div id="root"></div>
 <script src="app.js" defer></script>
+<script>
+// Dev auto-reload: watch app.js Last-Modified; reload when Vite rebuilds.
+(function(){var t=null;function p(){var x=new XMLHttpRequest();x.open('HEAD','/app.js',true);x.onload=function(){var n=x.getResponseHeader('Last-Modified');if(t&&n!==t)location.reload();t=n;};x.send();setTimeout(p,1000);}setTimeout(p,2000);})();
+</script>
