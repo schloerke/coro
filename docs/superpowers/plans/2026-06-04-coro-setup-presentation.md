@@ -716,6 +716,7 @@ server <- function(input, output, session) {
   output$demo_lines <- reactive_output(demo_lines())
 
   run_demo <- function(use_setup) {
+    if (is_demo_running()) return(invisible())  # ignore clicks while a run is in flight
     demo_lines(character(0))
     logfile <- tempfile(fileext = ".log")
     file.create(logfile)
