@@ -6,7 +6,9 @@
 
 **Architecture:** Shiny for R serves a Vite-built React client through `shinyreact::page_react_html()`. The client is a Spectacle deck; one custom SVG component (`ContextPyramid`) animates step-by-step via Spectacle's `useSteps()`. A live panel sends button events to the R server (`useShinyInput` → `input$run_*`), which runs `coro` async demos that log via an `emit()` helper to a temp file; an R `later` poller tails the file into a `reactiveVal` surfaced by `reactive_output()` and streamed back via `useShinyOutputValue()`.
 
-**Tech Stack:** R (shiny, shinyreact, coro [PR #70], promises, later), React 19 (provided by shinyreact at `window.shinyreact.React`), Spectacle 10, Vite 5 (IIFE build, React externalized), vitest, testthat, Playwright.
+**Tech Stack:** R (shiny, shinyreact, **coro loaded from this repo via `pkgload::load_all()`** — the installed CRAN coro 1.1.0 has no `setup()`, but this branch does, promises, later), React 19 (provided by shinyreact at `window.shinyreact.React`), Spectacle 10, Vite 5 (IIFE build, React externalized), vitest, testthat, Playwright.
+
+**Environment (already verified):** R 4.5.2, node v22.13.1, npm 11.4.1; `shiny` 1.13.0, `shinyreact` 0.0.0.9000, `promises` 1.5.0, `later` 1.4.8, `testthat` 3.3.2, `pkgload` 1.5.2 are all installed. `pkgload::load_all(<repo root>)` exposes `coro::setup()`/`async()`/`async_sleep()`. **Sandbox note:** binding a port (`shiny::runApp`) and `npm install`/`npx playwright install` (network) may hit the command sandbox — rerun the specific command with the sandbox disabled if you see `EPERM`/network errors.
 
 **Spec:** `docs/superpowers/specs/2026-06-04-coro-setup-presentation-design.md`
 
@@ -544,9 +546,13 @@ contexts separate. The enter/restore shape mirrors the canonical `setup()` examp
 
 ```r
 library(testthat)
-library(coro)
 library(promises)
 library(later)
+
+# Load the in-repo coro (it has setup(); installed CRAN coro 1.1.0 does not).
+# Run from app/demo, so the repo root is ../..
+pkgload::load_all(file.path("..", ".."), quiet = TRUE)
+stopifnot("setup" %in% getNamespaceExports("coro"))
 
 source("domain_demo.R")  # run from app/demo
 
@@ -677,9 +683,13 @@ git commit -m "feat(app): live coro promise-domain demo + divergence test (#68)"
 ```r
 library(shiny)
 library(shinyreact)
-library(coro)
 library(promises)
 library(later)
+
+# Load the in-repo coro (it has setup(); installed CRAN coro 1.1.0 does not).
+# runApp("app") sets the working directory to app/, so the repo root is "..".
+pkgload::load_all("..", quiet = TRUE)
+stopifnot("setup" %in% getNamespaceExports("coro"))
 
 source("demo/domain_demo.R", local = TRUE)
 
@@ -1047,9 +1057,10 @@ R packages:
 
 ```r
 install.packages("pak")
-pak::pak(c("shiny", "promises", "later"))
+pak::pak(c("shiny", "promises", "later", "pkgload"))
 pak::pak("posit-dev/shinyreact/pkg-r")   # internal/private repo — requires auth
-pak::pak("schloerke/coro@issue-68")      # PR #70: includes setup()  [confirm ref]
+# coro is NOT installed separately: the app loads it from THIS repo with
+# pkgload::load_all() (this branch has setup(); the released coro 1.1.0 does not).
 ```
 
 Node (only to rebuild the client; the built `www/app.js` is committed):
@@ -1106,6 +1117,7 @@ git commit -m "docs(app): README — install, build, run, test (#68)"
 
 1. **`app/demo/domain_demo.R`** (Task 6) — confirm the `on.exit`-based context reprex, or swap in
    a literal `promises::with_promise_domain()` version. Server/test/slides are unaffected.
-2. **`coro` install ref** (Task 10 README) — confirm `schloerke/coro@issue-68` vs. another PR #70 ref.
+2. ~~**`coro` install ref**~~ — **RESOLVED:** the app loads coro from this repo via
+   `pkgload::load_all()` (verified to expose `setup()`); no PR/fork install needed.
 3. **On-slide R snippets** (Task 8) — the `async`/`setup`/domain snippets are pulled from
    `R/async.R` and `R/setup.R`; confirm wording/length fit the 5-minute budget.
