@@ -722,7 +722,13 @@ server <- function(input, output, session) {
     con <- file(logfile, "r")
 
     emit <- make_emit(logfile)
-    domain_demo(emit, use_setup = use_setup)  # starts async work; sets the_ctx$running
+    # Start the async work and surface any rejection into the log — a Shiny
+    # server would otherwise silently swallow an unhandled promise rejection.
+    # domain_demo() sets the_ctx$running TRUE while in flight, FALSE when settled.
+    promises::catch(
+      domain_demo(emit, use_setup = use_setup),
+      function(err) emit(sprintf("ERROR: %s", conditionMessage(err)))
+    )
 
     drain <- function() {
       new <- readLines(con)
