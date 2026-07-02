@@ -2,11 +2,10 @@
 #'
 #' @description
 #' `setup()` registers an expression that runs at the start of **every** step of
-#' a [generator()] or [async()] function: the initial entry and every resumption
-#' after a [yield()] or [await()]. Any `withr::defer()`, `withr::local_*()`, or
-#' [on.exit()] registered while `expr` runs is torn down at the **end of that
-#' step** (the next `yield`/`await`, a `return`, normal completion, an error, or
-#' early close).
+#' a [generator()]/[async()] function — each time it is **entered or resumed** —
+#' and tears down anything it registers (`withr::defer()`, `withr::local_*()`, or
+#' [on.exit()]) at the **end of that step**, when the coroutine **suspends**
+#' (`yield()`/`await()`) or **finishes** (`return`, completion, error, or close).
 #'
 #' This gives setup/teardown parity for each step of a coroutine, unlike a
 #' top-level `on.exit()` which only fires once when the whole function exits.
@@ -27,6 +26,53 @@
 #' Like [yield()] and [await()], `setup()` is a syntactic construct recognised by
 #' the coroutine compiler. Calling it directly (outside a coroutine body) is an
 #' error.
+#'
+#' @section When setup and teardown run:
+#'
+#' It helps to compare `setup()` with a regular `withr::defer()`/[on.exit()] over
+#' a multi-step run:
+#'
+#' * A regular `withr::defer()`/[on.exit()] in the function body registers
+#'   **once** and runs **once**, when the whole coroutine finishes.
+#' * A `setup()` body — including any assignments in it — runs at the **start of
+#'   every step**.
+#' * A `withr::defer()`/[on.exit()] registered inside `setup()` runs at the **end
+#'   of every step**.
+#'
+#' The log below traces a generator with two `yield()`s (so three steps):
+#'
+#' ```r
+#' log <- character()
+#'
+#' gen <- generator(function() {
+#'   log <<- c(log, "beginning")
+#'   withr::defer(log <<- c(log, "end  (once, at function exit)"))
+#'   setup({
+#'     x <- "local"   # an assignment here runs at each step start (local to setup)
+#'     log <<- c(log, "  setup body     (start of every step)")
+#'     withr::defer(log <<- c(log, "  setup defer    (end of every step)"))
+#'   })
+#'   log <<- c(log, "    body 1")
+#'   yield("a")
+#'   log <<- c(log, "    body 2")
+#'   yield("b")
+#'   log <<- c(log, "    body 3")
+#' })
+#'
+#' invisible(collect(gen()))
+#' writeLines(log)
+#' #> beginning
+#' #>   setup body     (start of every step)
+#' #>     body 1
+#' #>   setup defer    (end of every step)
+#' #>   setup body     (start of every step)
+#' #>     body 2
+#' #>   setup defer    (end of every step)
+#' #>   setup body     (start of every step)
+#' #>     body 3
+#' #>   setup defer    (end of every step)
+#' #> end  (once, at function exit)
+#' ```
 #'
 #' @section Assignments and scope:
 #'
@@ -68,38 +114,67 @@
 #'
 #' `setup()` cannot be used inside a loop (`for`, `while`, or `repeat`); doing so
 #' is an error. Per-step registration interacts poorly with iteration: a loop
-#' body may branch and yield, so it is ambiguous when the setup should be
+#' body may itself branch and yield, so it is ambiguous when the setup should be
 #' registered, re-run, and torn down relative to each iteration.
 #'
-#' When you need per-iteration setup and teardown, factor the loop body into its
-#' own generator and delegate to it with a `for` loop. Each sub-generator
-#' instance has its own `setup()` lifecycle, scoped to its own steps, so its
-#' teardown fires at every step end and never leaks to the outer generator. The
-#' second `yield()` below shows the re-run: after the first yield `the$x` is
-#' restored to `0`, then `setup()` re-runs before the next step, so the second
-#' yield again sees `i`:
+#' ```r
+#' generator(function() {
+#'   for (i in 1:3) {
+#'     # Error! Can't use `setup()` within a loop
+#'     setup({
+#'       the$x <- i
+#'       withr::defer(the$x <- 0)
+#'     })
+#'     yield(the$x)
+#'   }
+#' })
+#' ```
+#'
+#' When you need setup and teardown *per iteration*, move the loop body into its
+#' own generator and drive it from the outer generator with `for (x in generate_x(i))`.
+#' The key idea is that a generator's `setup()` is scoped to *that generator's
+#' own steps*: it re-runs at the start of each step and its teardown fires at the
+#' end of each step, independently of whatever is consuming it.
+#'
+#' Follow `the$x` through the example below. It is a shared variable, yet the
+#' mutation inside `generate_x(i)` is never observable from the outer generator:
+#'
+#' * **Inside `generate_x(i)`.** Each time `generate_x(i)` resumes it re-runs its setup
+#'   (`the$x <- i`); each time it suspends at a `yield()` it runs its teardown
+#'   (`the$x <- 0`). So at every `yield()` *inside* `generate_x(i)`, `the$x` equals `i`.
+#'
+#' * **Outside `generate_x(i)`.** `for (x in generate_x(i))` pulls one value per iteration.
+#'   Receiving a value means `generate_x(i)` has just suspended, so its teardown has
+#'   *already run*. By the time the outer loop body executes, `the$x` is back to
+#'   `0` — which is what `stopifnot(the$x == 0)` asserts. Nothing `generate_x(i)` did to
+#'   `the$x` leaks out to the outer generator or its caller.
 #'
 #' ```r
 #' the <- new.env()
 #' the$x <- 0
 #'
-#' step <- generator(function(i) {
+#' # Per-iteration setup/teardown lives in its own generator:
+#' generate_x <- generator(function(i) {
 #'   setup({
-#'     the$x <- i                 # set up before every step...
-#'     withr::defer(the$x <- 0)   # ...and torn down at the end of each
+#'     the$x <- i                 # runs at the start of each of generate_x(i)'s steps
+#'     withr::defer(the$x <- 0)   # runs at the end of each of generate_x(i)'s steps
 #'   })
-#'   yield(the$x)   # `i`
-#'   yield(the$x)   # still `i`: restored to 0 at the last step end, then setup() re-ran
+#'   yield(the$x)   # the$x == i
+#'   yield(the$x)   # the$x == i again (setup re-ran for this step)
 #' })
 #'
+#' # The outer generator delegates to generate_x(i) and re-yields its values:
 #' gen <- generator(function() {
 #'   for (i in 1:3) {
-#'     for (x in step(i)) yield(x)
+#'     for (x in generate_x(i)) {
+#'       stopifnot(the$x == 0)  # 0 out here: generate_x(i)'s teardown ran when it suspended
+#'       yield(x)
+#'     }
 #'   }
 #' })
 #'
 #' collect(gen())   # 1, 1, 2, 2, 3, 3
-#' the$x            # 0 — always restored between steps
+#' the$x            # 0
 #' ```
 #'
 #' @param expr An expression to run at the start of each step.

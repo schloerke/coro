@@ -11,11 +11,10 @@ setup(expr)
 }
 \description{
 \code{setup()} registers an expression that runs at the start of \strong{every} step of
-a \code{\link[=generator]{generator()}} or \code{\link[=async]{async()}} function: the initial entry and every resumption
-after a \code{\link[=yield]{yield()}} or \code{\link[=await]{await()}}. Any \code{withr::defer()}, \verb{withr::local_*()}, or
-\code{\link[=on.exit]{on.exit()}} registered while \code{expr} runs is torn down at the \strong{end of that
-step} (the next \code{yield}/\code{await}, a \code{return}, normal completion, an error, or
-early close).
+a \code{\link[=generator]{generator()}}/\code{\link[=async]{async()}} function — each time it is \strong{entered or resumed} —
+and tears down anything it registers (\code{withr::defer()}, \verb{withr::local_*()}, or
+\code{\link[=on.exit]{on.exit()}}) at the \strong{end of that step}, when the coroutine \strong{suspends}
+(\code{yield()}/\code{await()}) or \strong{finishes} (\code{return}, completion, error, or close).
 
 This gives setup/teardown parity for each step of a coroutine, unlike a
 top-level \code{on.exit()} which only fires once when the whole function exits.
@@ -39,6 +38,55 @@ Like \code{\link[=yield]{yield()}} and \code{\link[=await]{await()}}, \code{setu
 the coroutine compiler. Calling it directly (outside a coroutine body) is an
 error.
 }
+\section{When setup and teardown run}{
+
+
+It helps to compare \code{setup()} with a regular \code{withr::defer()}/\code{\link[=on.exit]{on.exit()}} over
+a multi-step run:
+\itemize{
+\item A regular \code{withr::defer()}/\code{\link[=on.exit]{on.exit()}} in the function body registers
+\strong{once} and runs \strong{once}, when the whole coroutine finishes.
+\item A \code{setup()} body — including any assignments in it — runs at the \strong{start of
+every step}.
+\item A \code{withr::defer()}/\code{\link[=on.exit]{on.exit()}} registered inside \code{setup()} runs at the \strong{end
+of every step}.
+}
+
+The log below traces a generator with two \code{yield()}s (so three steps):
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{log <- character()
+
+gen <- generator(function() \{
+  log <<- c(log, "beginning")
+  withr::defer(log <<- c(log, "end  (once, at function exit)"))
+  setup(\{
+    x <- "local"   # an assignment here runs at each step start (local to setup)
+    log <<- c(log, "  setup body     (start of every step)")
+    withr::defer(log <<- c(log, "  setup defer    (end of every step)"))
+  \})
+  log <<- c(log, "    body 1")
+  yield("a")
+  log <<- c(log, "    body 2")
+  yield("b")
+  log <<- c(log, "    body 3")
+\})
+
+invisible(collect(gen()))
+writeLines(log)
+#> beginning
+#>   setup body     (start of every step)
+#>     body 1
+#>   setup defer    (end of every step)
+#>   setup body     (start of every step)
+#>     body 2
+#>   setup defer    (end of every step)
+#>   setup body     (start of every step)
+#>     body 3
+#>   setup defer    (end of every step)
+#> end  (once, at function exit)
+}\if{html}{\out{</div>}}
+}
+
 \section{Assignments and scope}{
 
 
@@ -81,37 +129,65 @@ sub-generator pattern shown in "Using \code{setup()} in a loop".
 
 \code{setup()} cannot be used inside a loop (\code{for}, \code{while}, or \code{repeat}); doing so
 is an error. Per-step registration interacts poorly with iteration: a loop
-body may branch and yield, so it is ambiguous when the setup should be
+body may itself branch and yield, so it is ambiguous when the setup should be
 registered, re-run, and torn down relative to each iteration.
 
-When you need per-iteration setup and teardown, factor the loop body into its
-own generator and delegate to it with a \code{for} loop. Each sub-generator
-instance has its own \code{setup()} lifecycle, scoped to its own steps, so its
-teardown fires at every step end and never leaks to the outer generator. The
-second \code{yield()} below shows the re-run: after the first yield \code{the$x} is
-restored to \code{0}, then \code{setup()} re-runs before the next step, so the second
-yield again sees \code{i}:
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{generator(function() \{
+  for (i in 1:3) \{
+    # Error! Can't use `setup()` within a loop
+    setup(\{
+      the$x <- i
+      withr::defer(the$x <- 0)
+    \})
+    yield(the$x)
+  \}
+\})
+}\if{html}{\out{</div>}}
+
+When you need setup and teardown \emph{per iteration}, move the loop body into its
+own generator and drive it from the outer generator with \verb{for (x in generate_x(i))}.
+The key idea is that a generator's \code{setup()} is scoped to \emph{that generator's
+own steps}: it re-runs at the start of each step and its teardown fires at the
+end of each step, independently of whatever is consuming it.
+
+Follow \code{the$x} through the example below. It is a shared variable, yet the
+mutation inside \code{generate_x(i)} is never observable from the outer generator:
+\itemize{
+\item \strong{Inside \code{generate_x(i)}.} Each time \code{generate_x(i)} resumes it re-runs its setup
+(\code{the$x <- i}); each time it suspends at a \code{yield()} it runs its teardown
+(\code{the$x <- 0}). So at every \code{yield()} \emph{inside} \code{generate_x(i)}, \code{the$x} equals \code{i}.
+\item \strong{Outside \code{generate_x(i)}.} \verb{for (x in generate_x(i))} pulls one value per iteration.
+Receiving a value means \code{generate_x(i)} has just suspended, so its teardown has
+\emph{already run}. By the time the outer loop body executes, \code{the$x} is back to
+\code{0} — which is what \code{stopifnot(the$x == 0)} asserts. Nothing \code{generate_x(i)} did to
+\code{the$x} leaks out to the outer generator or its caller.
+}
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{the <- new.env()
 the$x <- 0
 
-step <- generator(function(i) \{
+# Per-iteration setup/teardown lives in its own generator:
+generate_x <- generator(function(i) \{
   setup(\{
-    the$x <- i                 # set up before every step...
-    withr::defer(the$x <- 0)   # ...and torn down at the end of each
+    the$x <- i                 # runs at the start of each of generate_x(i)'s steps
+    withr::defer(the$x <- 0)   # runs at the end of each of generate_x(i)'s steps
   \})
-  yield(the$x)   # `i`
-  yield(the$x)   # still `i`: restored to 0 at the last step end, then setup() re-ran
+  yield(the$x)   # the$x == i
+  yield(the$x)   # the$x == i again (setup re-ran for this step)
 \})
 
+# The outer generator delegates to generate_x(i) and re-yields its values:
 gen <- generator(function() \{
   for (i in 1:3) \{
-    for (x in step(i)) yield(x)
+    for (x in generate_x(i)) \{
+      stopifnot(the$x == 0)  # 0 out here: generate_x(i)'s teardown ran when it suspended
+      yield(x)
+    \}
   \}
 \})
 
 collect(gen())   # 1, 1, 2, 2, 3, 3
-the$x            # 0 — always restored between steps
+the$x            # 0
 }\if{html}{\out{</div>}}
 }
 
