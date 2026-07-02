@@ -128,6 +128,22 @@ g()        # 1
 the$x      # 0 — restored at the end of the step
 g()        # 1
 the$x      # 0
+
+# `setup()` is handy for per-step hygiene: global state changed with a withr
+# helper is restored at the end of each step, so it never leaks across steps
+# or back to the caller. Here an option is scoped to each step:
+gen <- generator(function() {
+  setup(withr::local_options(coro.example = "step"))
+  yield(getOption("coro.example", "unset"))
+  yield(getOption("coro.example", "unset"))
+})
+
+g <- gen()
+getOption("coro.example", "unset")   # "unset"
+g()                                  # "step" — option set for this step
+getOption("coro.example", "unset")   # "unset" — restored at the step end
+g()                                  # "step"
+getOption("coro.example", "unset")   # "unset"
 }
 \seealso{
 \code{\link[=generator]{generator()}}, \code{\link[=async]{async()}}, \code{\link[=yield]{yield()}}, \code{\link[=await]{await()}}.
