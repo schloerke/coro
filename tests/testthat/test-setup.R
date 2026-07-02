@@ -8,6 +8,7 @@ test_that("setup() can't be called directly or within function arguments", {
   expect_error(f()(), "within function arguments")
 })
 
+
 test_that("setup() runs before every step; teardown fires at each step end", {
   the <- new.env()
   the$x <- 0
@@ -35,6 +36,7 @@ test_that("setup() runs before every step; teardown fires at each step end", {
   expect_equal(log, c("before1:9", "before2:9"))
 })
 
+
 test_that("setup() teardown is restored around await() (issue #68 reprex)", {
   skip_on_cran()
   the <- new.env()
@@ -60,6 +62,7 @@ test_that("setup() teardown is restored around await() (issue #68 reprex)", {
   expect_equal(the$x, 0)
 })
 
+
 test_that("multiple setup() calls stack; teardowns fire in reverse order", {
   log <- character()
 
@@ -74,6 +77,7 @@ test_that("multiple setup() calls stack; teardowns fire in reverse order", {
   expect_equal(g(), 1)
   expect_equal(log, c("body", "teardown-B", "teardown-A"))
 })
+
 
 test_that("a failing teardown does not block other teardowns; first error re-raised", {
   log <- character()
@@ -91,6 +95,7 @@ test_that("a failing teardown does not block other teardowns; first error re-rai
   expect_error(g(), "boom in A")
   expect_equal(log, c("B", "A-1"))
 })
+
 
 test_that("setup() rejects suspension and assignment when the coroutine is compiled", {
   # The state machine is compiled lazily on the first instance call, so these
@@ -113,6 +118,7 @@ test_that("setup() rejects suspension and assignment when the coroutine is compi
   )
 })
 
+
 test_that("setup() allows a nested coroutine in its body", {
   gen <- generator(function() {
     setup({
@@ -123,11 +129,8 @@ test_that("setup() allows a nested coroutine in its body", {
   expect_equal(gen()(), "ok")
 })
 
-# Known shortcomings ----
-# These tests document *deliberate* limitations / surprising-but-correct
-# behaviors of setup(). They assert the current behavior on purpose.
 
-test_that("KNOWN LIMITATION: plain assignments in setup() are not visible to the body", {
+test_that("setup() runs in a child environment", {
   gen <- generator(function() {
     setup({
       y <- 99
@@ -137,7 +140,8 @@ test_that("KNOWN LIMITATION: plain assignments in setup() are not visible to the
   expect_false(gen()())
 })
 
-test_that("KNOWN LIMITATION: a setup() after a suspend is not retroactive", {
+
+test_that("setup() after a suspend is not retroactive", {
   log <- character()
   gen <- generator(function() {
     log <<- c(log, "step1")
@@ -146,11 +150,13 @@ test_that("KNOWN LIMITATION: a setup() after a suspend is not retroactive", {
     yield(2)
   })
   g <- gen()
+  expect_equal(log, character())
   g()
-  expect_false("setup-registered" %in% log)
+  expect_equal(log, c("step1"))
   g()
-  expect_true("setup-registered" %in% log)
+  expect_equal(log, c("step1", "setup-registered"))
 })
+
 
 test_that("setup() within a loop is an error", {
   # Mixing per-step registration with iteration has opaque semantics, so it is
@@ -174,7 +180,8 @@ test_that("setup() within a loop is an error", {
   )
 })
 
-test_that("per-iteration setup/teardown works by delegating to a sub-generator", {
+
+test_that("per-iteration setup/teardown works when delegating to a sub-generator", {
   the <- new.env()
   the$x <- 0
   seen <- new.env()
@@ -203,7 +210,8 @@ test_that("per-iteration setup/teardown works by delegating to a sub-generator",
   expect_equal(the$x, 0)                       # ...and restored after each iteration
 })
 
-test_that("KNOWN LIMITATION: a teardown error disables the generator", {
+
+test_that("a teardown error within setup() disables the generator", {
   gen <- generator(function() {
     setup(on.exit(stop("teardown boom"), add = TRUE))
     yield(1)
@@ -214,8 +222,10 @@ test_that("KNOWN LIMITATION: a teardown error disables the generator", {
   expect_error(g(), "disabled")
 })
 
-test_that("KNOWN LIMITATION: an abandoned async promise leaves no final step", {
+
+test_that("an abandoned async promise leaves no final step", {
   skip_on_cran()
+  
   the <- new.env()
   the$x <- 0
   f <- async(function() {
@@ -231,6 +241,7 @@ test_that("KNOWN LIMITATION: an abandoned async promise leaves no final step", {
   expect_equal(the$x, 0)
 })
 
+
 test_that("setup() compiles to a do_setup() state", {
   expect_snapshot0(generator_body(function() {
     setup({
@@ -240,6 +251,7 @@ test_that("setup() compiles to a do_setup() state", {
     yield(1)
   }))
 })
+
 
 test_that("setup() supports withr::defer() and withr::local_*() per step", {
   # The documented contract: withr teardown registered in a setup() body is
@@ -263,7 +275,7 @@ test_that("setup() supports withr::defer() and withr::local_*() per step", {
   })
   g <- gen()
 
-  expect_equal(g(), 1)                         # withr::defer set the$x to 1
+  expect_equal(g(), 1)                          # withr::defer set the$x to 1
   expect_equal(the$x, 0)                        # ...and restored it at step end
   expect_null(getOption("coro.setup.flag"))     # withr::local_options restored too
   expect_equal(g(), 1)
