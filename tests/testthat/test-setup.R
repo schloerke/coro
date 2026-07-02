@@ -181,6 +181,31 @@ test_that("setup() within a loop is an error", {
 })
 
 
+test_that("setup() inside a nested function (e.g. lapply) errors via the stub", {
+  # `setup()` is only recognised at the coroutine's top level. Inside a nested
+  # function it does not cross the function boundary (like `yield()`/`await()`),
+  # so it stays a plain call to the exported stub and errors -- but with the
+  # generic message, not the loop-specific one.
+  gen <- generator(function() {
+    lapply(1:3, function(i) setup(NULL))
+    yield(1)
+  })
+  expect_error(gen()(), "can't be called directly or within function arguments")
+})
+
+
+test_that("setup() inside replicate() (a captured expression) errors via the stub", {
+  # replicate() captures its second argument as an expression and evaluates it
+  # inside a generated function, so `setup()` is never compiled as a coroutine
+  # construct -- it reaches the stub, like the apply family.
+  gen <- generator(function() {
+    replicate(2, setup(NULL))
+    yield(1)
+  })
+  expect_error(gen()(), "can't be called directly or within function arguments")
+})
+
+
 test_that("per-iteration setup/teardown works when delegating to a sub-generator", {
   the <- new.env()
   the$x <- 0
