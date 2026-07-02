@@ -44,11 +44,14 @@
 #'
 #' ```r
 #' generator(function() {
-#'   setup({ n <- 100 })  # local to setup; does not touch the body's `n`
 #'   n <- 5
-#'   yield(n)             # 5
+#'   setup({
+#'     # local to setup; does NOT set the generator's `n`
+#'     n <- 100
+#'   })
+#'   yield(n)    # yields `5`
 #'   n <- n + 1
-#'   yield(n)             # 6
+#'   yield(n)    # yields `6`
 #' })
 #' ```
 #'
@@ -56,10 +59,12 @@
 #' existing object instead of creating a local binding: assign into an
 #' environment (`the$x <- 1`) or use `<<-` to update an enclosing binding, and
 #' pair the change with `withr::defer()`/[on.exit()] to restore it at the end of
-#' each step. If you need a value computed per step *and* visible to the body,
-#' use the sub-generator pattern shown in "Using setup() in a loop".
+#' each step. (See "Examples" section)
 #'
-#' @section Using setup() in a loop:
+#' If you need a value computed per step *and* visible to the body, use the
+#' sub-generator pattern shown in "Using `setup()` in a loop".
+#'
+#' @section Using `setup()` in a loop:
 #'
 #' `setup()` cannot be used inside a loop (`for`, `while`, or `repeat`); doing so
 #' is an error. Per-step registration interacts poorly with iteration: a loop
@@ -68,10 +73,11 @@
 #'
 #' When you need per-iteration setup and teardown, factor the loop body into its
 #' own generator and delegate to it with a `for` loop. Each sub-generator
-#' instance has its own `setup()` lifecycle, scoped to its steps. The second
-#' `yield()` below shows the effect: after the first yield the step ends and
-#' `the$x` is reset to `0`, then `setup()` re-runs before the next step, so the
-#' second yield again sees `i`:
+#' instance has its own `setup()` lifecycle, scoped to its own steps, so its
+#' teardown fires at every step end and never leaks to the outer generator. The
+#' second `yield()` below shows the re-run: after the first yield `the$x` is
+#' restored to `0`, then `setup()` re-runs before the next step, so the second
+#' yield again sees `i`:
 #'
 #' ```r
 #' the <- new.env()
@@ -82,8 +88,8 @@
 #'     the$x <- i                 # set up before every step...
 #'     withr::defer(the$x <- 0)   # ...and torn down at the end of each
 #'   })
-#'   yield(the$x)   # the$x is i here
-#'   yield(the$x)   # still i: reset to 0 at the last step end, then setup() re-ran
+#'   yield(the$x)   # `i`
+#'   yield(the$x)   # still `i`: restored to 0 at the last step end, then setup() re-ran
 #' })
 #'
 #' gen <- generator(function() {
@@ -93,7 +99,7 @@
 #' })
 #'
 #' collect(gen())   # 1, 1, 2, 2, 3, 3
-#' the$x            # 0
+#' the$x            # 0 — always restored between steps
 #' ```
 #'
 #' @param expr An expression to run at the start of each step.

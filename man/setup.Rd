@@ -55,11 +55,14 @@ the assignment visible, the second step would reset \code{n} to \code{100} and y
 \code{101}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{generator(function() \{
-  setup(\{ n <- 100 \})  # local to setup; does not touch the body's `n`
   n <- 5
-  yield(n)             # 5
+  setup(\{
+    # local to setup; does NOT set the generator's `n`
+    n <- 100
+  \})
+  yield(n)    # yields `5`
   n <- n + 1
-  yield(n)             # 6
+  yield(n)    # yields `6`
 \})
 }\if{html}{\out{</div>}}
 
@@ -67,11 +70,13 @@ To change state that the body (or the outside world) can see, mutate an
 existing object instead of creating a local binding: assign into an
 environment (\code{the$x <- 1}) or use \verb{<<-} to update an enclosing binding, and
 pair the change with \code{withr::defer()}/\code{\link[=on.exit]{on.exit()}} to restore it at the end of
-each step. If you need a value computed per step \emph{and} visible to the body,
-use the sub-generator pattern shown in "Using setup() in a loop".
+each step. (See "Examples" section)
+
+If you need a value computed per step \emph{and} visible to the body, use the
+sub-generator pattern shown in "Using \code{setup()} in a loop".
 }
 
-\section{Using setup() in a loop}{
+\section{Using \code{setup()} in a loop}{
 
 
 \code{setup()} cannot be used inside a loop (\code{for}, \code{while}, or \code{repeat}); doing so
@@ -81,10 +86,11 @@ registered, re-run, and torn down relative to each iteration.
 
 When you need per-iteration setup and teardown, factor the loop body into its
 own generator and delegate to it with a \code{for} loop. Each sub-generator
-instance has its own \code{setup()} lifecycle, scoped to its steps. The second
-\code{yield()} below shows the effect: after the first yield the step ends and
-\code{the$x} is reset to \code{0}, then \code{setup()} re-runs before the next step, so the
-second yield again sees \code{i}:
+instance has its own \code{setup()} lifecycle, scoped to its own steps, so its
+teardown fires at every step end and never leaks to the outer generator. The
+second \code{yield()} below shows the re-run: after the first yield \code{the$x} is
+restored to \code{0}, then \code{setup()} re-runs before the next step, so the second
+yield again sees \code{i}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{the <- new.env()
 the$x <- 0
@@ -94,8 +100,8 @@ step <- generator(function(i) \{
     the$x <- i                 # set up before every step...
     withr::defer(the$x <- 0)   # ...and torn down at the end of each
   \})
-  yield(the$x)   # the$x is i here
-  yield(the$x)   # still i: reset to 0 at the last step end, then setup() re-ran
+  yield(the$x)   # `i`
+  yield(the$x)   # still `i`: restored to 0 at the last step end, then setup() re-ran
 \})
 
 gen <- generator(function() \{
@@ -105,7 +111,7 @@ gen <- generator(function() \{
 \})
 
 collect(gen())   # 1, 1, 2, 2, 3, 3
-the$x            # 0
+the$x            # 0 — always restored between steps
 }\if{html}{\out{</div>}}
 }
 
