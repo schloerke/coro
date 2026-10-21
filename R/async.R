@@ -120,6 +120,10 @@ async_sleep <- function(seconds) {
 #'     async_map(`*`, 2) %>%
 #'     async_collect() %>%
 #'     promises::then(str)
+#'   #> List of 3
+#'   #>  $ : num 2
+#'   #>  $ : num 4
+#'   #>  $ : num 6
 #' }
 #'
 #' # coro provides a short syntax `async_gen()` for creating one-off
@@ -129,7 +133,14 @@ async_sleep <- function(seconds) {
 #' squares <- async_gen(for (x in await_each(odds)) yield(x^2))
 #' greetings <- async_gen(for (x in await_each(squares)) yield(paste("Hey", x)))
 #' if (interactive()) {
-#'   async_collect(greetings) %>% promises::then(str)
+#'   async_collect(greetings) %>%
+#'     promises::then(str)
+#'   #> List of 5
+#'   #>  $ : chr "Hey 1"
+#'   #>  $ : chr "Hey 9"
+#'   #>  $ : chr "Hey 25"
+#'   #>  $ : chr "Hey 49"
+#'   #>  $ : chr "Hey 81"
 #' }
 #' @export
 async_generator <- function(fn) {
