@@ -137,7 +137,8 @@ async_generator <- function(fn) {
 }
 
 #' @rdname async_generator
-#' @param expr A yielding expression.
+#' @param expr A yielding expression within which `await()` calls
+#'   are allowed.
 #' @export
 async_gen <- function(expr) {
   fn <- new_function(NULL, substitute(expr), caller_env())

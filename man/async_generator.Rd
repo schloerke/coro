@@ -16,7 +16,8 @@ await_each(x)
 \item{fn}{An anonymous function describing an async generator
 within which \code{await()} calls are allowed.}
 
-\item{expr}{A yielding expression.}
+\item{expr}{A yielding expression within which \code{await()} calls
+are allowed.}
 
 \item{x}{An awaitable value, i.e. a \link[promises:promise]{promise}.}
 }
