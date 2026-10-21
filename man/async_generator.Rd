@@ -52,7 +52,8 @@ if (interactive()) {
   library(magrittr)
   generate_stream(1:3) \%>\%
     async_map(`*`, 2) \%>\%
-    async_collect()
+    async_collect() \%>\%
+    promises::then(str)
 }
 
 # coro provides a short syntax `async_gen()` for creating one-off
@@ -62,7 +63,7 @@ odds <- async_gen(for (x in await_each(numbers)) if (x \%\% 2 != 0) yield(x))
 squares <- async_gen(for (x in await_each(odds)) yield(x^2))
 greetings <- async_gen(for (x in await_each(squares)) yield(paste("Hey", x)))
 if (interactive()) {
-  async_collect(greetings) \%>\% promises::then(print)
+  async_collect(greetings) \%>\% promises::then(str)
 }
 }
 \seealso{
