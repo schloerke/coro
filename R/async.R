@@ -133,7 +133,8 @@ async_sleep <- function(seconds) {
 #' squares <- async_gen(for (x in await_each(odds)) yield(x^2))
 #' greetings <- async_gen(for (x in await_each(squares)) yield(paste("Hey", x)))
 #' if (interactive()) {
-#'   async_collect(greetings) %>%
+#'   greetings %>%
+#'     async_collect() %>%
 #'     promises::then(str)
 #'   #> List of 5
 #'   #>  $ : chr "Hey 1"
