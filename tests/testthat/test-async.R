@@ -86,6 +86,9 @@ test_that("async generators resolve to the exhaustion sentinel after loops and m
   out <- gen()
   expect_promise(out)
   expect_exhausted(wait_for(out))
+
+  # Closing an exhausted async generator returns the raw sentinel
+  expect_exhausted(gen(close = TRUE))
 })
 
 test_that("await() yields", {
